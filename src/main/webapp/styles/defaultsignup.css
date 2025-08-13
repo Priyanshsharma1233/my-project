@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Triodion&display=swap');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Triodion', serif;
+  background-color: #121212;
+  color: #f0f0f0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+
+main {
+  display: flex;
+  width: 100%;
+  max-width: 960px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+/* Left Section - Welcome */
+.welcome-section {
+  flex: 2;
+  background: url('../images/nightSky.jpg') center center/cover no-repeat;
+  color: #fff;
+  padding: 4rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.welcome-section h1 {
+  font-size: 2.8rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+
+.welcome-section p {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  text-align: center;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Right Section - Form */
+.form-section {
+  flex: 3;
+  background: #fff;
+  padding: 3rem 2.5rem;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.form-section h1 {
+  font-size: 2rem;
+  margin-bottom: 2.5rem;
+  color: #2b2be3;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* Form Styles */
+form {
+  width: 100%;
+}
+
+label {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  color: #444;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 1rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 1.8rem;
+  transition: border-color 0.3s ease;
+  font-family: 'Triodion', serif;
+}
+
+input[type="text"]::placeholder,
+input[type="password"]::placeholder {
+  color: #999;
+  font-style: italic;
+  text-transform: capitalize;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+  border-color: #2b2be3;
+  outline: none;
+  box-shadow: 0 0 6px #2b2be3aa;
+}
+
+/* Submit Button */
+#submit {
+  text-align: center;
+}
+
+input[type="submit"] {
+  background-color: #2b2be3;
+  color: #fff;
+  border: none;
+  padding: 14px 32px;
+  font-size: 1.15rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  width: 100%;
+  max-width: 280px;
+}
+
+input[type="submit"]:hover,
+input[type="submit"]:focus {
+  background-color: #1b4bd1;
+  box-shadow: 0 4px 12px rgba(27, 75, 209, 0.7);
+  outline: none;
+}
+
+/* Error message styling */
+#errorMessage,
+.error-message {
+  color: #cc0000;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  main {
+    flex-direction: column;
+    max-width: 100%;
+  }
+
+  .welcome-section,
+  .form-section {
+    flex: none;
+    width: 100%;
+    padding: 2rem 1.5rem;
+  }
+
+  .welcome-section {
+    text-align: center;
+  }
+}

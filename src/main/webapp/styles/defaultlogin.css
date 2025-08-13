@@ -1,0 +1,185 @@
+@import url('https://fonts.googleapis.com/css2?family=Triodion&display=swap');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Triodion', serif;
+  background-color: #121212;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+
+main {
+  display: flex;
+  width: 100%;
+  max-width: 960px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Left section (image + text) */
+.welcome-section {
+  flex: 2;
+  position: relative;
+  background: url('../images/na.jpg') center center/cover no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #000;
+}
+
+/* Subtle white overlay for transparency */
+.welcome-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 255, 255, .2); /* 10% white overlay */
+  z-index: 0;
+}
+
+.welcome-section h1,
+.welcome-section p {
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-section h1 {
+  font-size: 2.6rem;
+  margin-bottom: 1rem;
+}
+
+.welcome-section p {
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+
+/* Right section (login form) */
+.form-section {
+  flex: 3;
+  background: #fff;
+  padding: 3rem 2.5rem;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.form-section h1 {
+  font-size: 2rem;
+  margin-bottom: 2.5rem;
+  color: #2b2be3;
+  text-align: center;
+  font-weight: 700;
+}
+
+form {
+  width: 100%;
+}
+
+label {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  color: #444;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 1rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 1.8rem;
+  transition: border-color 0.3s ease;
+  font-family: 'Triodion', serif;
+}
+
+input::placeholder {
+  color: #999;
+  font-style: italic;
+  text-transform: capitalize;
+}
+
+input:focus {
+  border-color: #2b2be3;
+  outline: none;
+  box-shadow: 0 0 6px #2b2be3aa;
+}
+
+#submit {
+  text-align: center;
+}
+
+input[type="submit"] {
+  background-color: #2b2be3;
+  color: #fff;
+  border: none;
+  padding: 14px 32px;
+  font-size: 1.15rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  width: 100%;
+  max-width: 280px;
+}
+
+input[type="submit"]:hover,
+input[type="submit"]:focus {
+  background-color: #1b4bd1;
+  box-shadow: 0 4px 12px rgba(27, 75, 209, 0.7);
+  outline: none;
+}
+
+.error-message {
+  color: #cc0000;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.signup-link {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 1rem;
+  color: #555;
+}
+
+.signup-link a {
+  color: #2b2be3;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.signup-link a:hover {
+  text-decoration: underline;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  main {
+    flex-direction: column;
+    max-width: 100%;
+  }
+
+  .welcome-section,
+  .form-section {
+    width: 100%;
+    padding: 2rem 1.5rem;
+  }
+}
