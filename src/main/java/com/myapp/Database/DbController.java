@@ -74,34 +74,68 @@ public class DbController {
         }
     }
 
-    public String validateUser(String username, String password){
-        try{
-            pstmt = connection.prepareStatement("select name from users where username=? and password=?");
-            pstmt.setString(1, username);
-            pstmt.setString(2, password);
-            ResultSet result = pstmt.executeQuery();
-            if (result.next()){
-                return result.getString(1);
+    public String validateUser(String username, String password) {
+        // 1) quick input guard
+        if (username == null || password == null) return null;
+        username = username.trim();
+        password = password.trim();
+        if (username.isEmpty() || password.isEmpty()) return null;
+
+        // 2) defensive check that connection exists
+        try {
+            if (connection == null || connection.isClosed()) {
+                System.out.println("validateUser: DB connection is null or closed!");
+                return null;
             }
-        } catch(Exception e){
+        } catch (Exception e) {
+            System.out.println("validateUser: error checking connection: " + e);
             return null;
         }
-        return null;
-    }
-    public String getUsers (String user) throws SQLException{
-        String u="";
-        String query = "SELECT username FROM users where username = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)){
-            statement.setString(1, user);
-            try(ResultSet resultSet = statement.executeQuery()){
-                if(resultSet.next()){
-                     u = resultSet.getString(1);
-                     return u;
+
+        // 3) query using try-with-resources to avoid leaks and to log problems
+        String sql = "SELECT name FROM users WHERE username = ? AND password = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.setString(2, password);
+
+            System.out.println("validateUser: executing query for username='" + username + "'");
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String name = rs.getString("name");
+                    System.out.println("validateUser: user found, name=" + name);
+                    return name;
+                } else {
+                    System.out.println("validateUser: no matching user found for username='" + username + "'");
                 }
             }
+        } catch (SQLException sq) {
+            System.out.println("validateUser: SQL error: " + sq.getMessage());
+        } catch (Exception ex) {
+            System.out.println("validateUser: unexpected error: " + ex);
         }
+
         return null;
     }
+
+    public String getUsers(String username) {
+        String user = null;
+        try {
+            String query = "SELECT username FROM users WHERE username = ?";
+            PreparedStatement ps = connection.prepareStatement(query);
+            ps.setString(1, username); // exact match, not partial
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                user = rs.getString("username");
+            }
+            rs.close();
+            ps.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return user;
+    }
+
 
     public void insertMessage(Message message)throws SQLException {
         PreparedStatement statement = connection.prepareStatement("insert into Message(sender,receiver,message) value(?,?,?)");

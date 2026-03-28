@@ -32,7 +32,7 @@ main {
 .welcome-section {
   flex: 2;
   position: relative;
-  background: url('../images/na.jpg') center center/cover no-repeat;
+  background: url('../images/nightSky.jpg') center center/cover no-repeat;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -59,11 +59,13 @@ main {
 .welcome-section h1 {
   font-size: 2.6rem;
   margin-bottom: 1rem;
+ color:white;
 }
 
 .welcome-section p {
   font-size: 1.15rem;
   line-height: 1.6;
+  color:white;
 }
 
 /* Right section (login form) */

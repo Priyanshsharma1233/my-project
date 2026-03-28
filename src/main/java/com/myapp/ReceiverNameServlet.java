@@ -16,32 +16,41 @@ import com.google.gson.GsonBuilder;
 
 @WebServlet("/getReceivers")
 public class ReceiverNameServlet extends HttpServlet {
-protected void doPost(HttpServletRequest request, HttpServletResponse response)throws ServletException,IOException{
-    System.out.println("Called");
-    try{
-        DbController db = new DbController();
-        ResultSet rs = db.getReceiverName((String)request.getSession().getAttribute("username"));
-        // ResultSet rs = db.getReceiverName("priyansh26");
-        ArrayList<String> receiver = new ArrayList<>();
-        while(rs.next()){
-            System.out.println("user geted");
-            receiver.add(rs.getString(1));
-            receiver.add(rs.getString(2));
-        }
-        ArrayList<String> receivers = new ArrayList<>();
-        for (String r : receiver){
-            if(!receivers.contains(r)){
-                receivers.add(r);
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        System.out.println("Called");
+        try {
+            DbController db = new DbController();
+            String currentUser = (String) request.getSession().getAttribute("username");
+
+            // Fetch receiver names related to current user
+            ResultSet rs = db.getReceiverName(currentUser);
+
+            ArrayList<String> receivers = new ArrayList<>();
+
+            while (rs.next()) {
+                String sender = rs.getString(1);
+                String receiver = rs.getString(2);
+
+                // ✅ Add only names that are NOT the current user
+                if (!sender.equalsIgnoreCase(currentUser) && !receivers.contains(sender)) {
+                    receivers.add(sender);
+                }
+                if (!receiver.equalsIgnoreCase(currentUser) && !receivers.contains(receiver)) {
+                    receivers.add(receiver);
+                }
             }
+
+            // Convert to JSON and send response
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            String json = gson.toJson(receivers);
+
+            response.setContentType("application/json");
+            response.getWriter().write(json);
+
+        } catch (Exception e) {
+            System.out.println("Exception while getting usernames: " + e);
         }
-
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String json = gson.toJson(receivers);
-        response.setContentType("application/json");
-        response.getWriter().write(json);
-
-    } catch(Exception e){
-        System.out.println("Exception to get username " + e);
     }
-}
 }
