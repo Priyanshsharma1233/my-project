@@ -11,49 +11,53 @@ public class DbController {
 
     public DbController() {
         try {
-            try{
-                Class.forName("com.mysql.jdbc.Driver");
-            } catch(ClassNotFoundException e){
+            try {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+            } catch (ClassNotFoundException e) {
                 System.out.println("Driver not found");
             }
-            connection = DriverManager.getConnection("jdbc:mysql://localhost", "root", "1234");
-            Statement statement = connection.createStatement();
-            try {
-                statement.executeUpdate("create database chatdb");
-                statement.executeUpdate("use chatdb");
-            } catch (SQLException ex) {
-                if (ex.getErrorCode() == 1007) {
-                    statement.executeUpdate("use chatdb");
-                }
-            }
-            try {
-                statement.executeUpdate("create table users(name varchar(20),username varchar(20) primary key,password varchar(10))");
-            } catch (SQLException e) {
-                if (e.getErrorCode() == 1050) {
-                    System.out.println("error in create table");
-                }
-            }
-          // first table
-            try {
-                statement.executeUpdate("create table Message(msgid int primary key auto_increment,sender varchar(20),Receiver varchar(20), message varchar(500),timestamps timestamp default current_timestamp)");
-            } catch (SQLException e) {
-                if (e.getErrorCode() == 1050) {
-                    System.out.println("error in create Message table "+ e);
-                }
 
-            }
-//           second table
+            // ✅ Read from environment variables (Railway)
+            // Falls back to localhost for local development
+            String host     = getEnv("MYSQLHOST",     "localhost");
+            String port     = getEnv("MYSQLPORT",     "3306");
+            String user     = getEnv("MYSQLUSER",     "root");
+            String password = getEnv("MYSQLPASSWORD", "1234");
+            String database = getEnv("MYSQLDATABASE", "chatdb");
+
+            String url = "jdbc:mysql://" + host + ":" + port + "/" + database
+                    + "?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true";
+
+            connection = DriverManager.getConnection(url, user, password);
+            Statement statement = connection.createStatement();
+
             try {
-                statement.executeUpdate("create table Recipient(id varchar(20) primary key,recipient varchar(20),user varchar(20))");
+                statement.executeUpdate("create table if not exists users(name varchar(20), username varchar(20) primary key, password varchar(10))");
             } catch (SQLException e) {
-                if (e.getErrorCode() == 1050) {
-                    System.out.println("error in create Recipient table");
-                }
+                System.out.println("error in create users table " + e);
+            }
+
+            try {
+                statement.executeUpdate("create table if not exists Message(msgid int primary key auto_increment, sender varchar(20), Receiver varchar(20), message varchar(500), timestamps timestamp default current_timestamp)");
+            } catch (SQLException e) {
+                System.out.println("error in create Message table " + e);
+            }
+
+            try {
+                statement.executeUpdate("create table if not exists Recipient(id varchar(20) primary key, recipient varchar(20), user varchar(20))");
+            } catch (SQLException e) {
+                System.out.println("error in create Recipient table " + e);
             }
 
         } catch (Exception e) {
             System.out.println("error in connecting " + e);
         }
+    }
+
+    // ✅ Helper to read environment variable with fallback
+    private String getEnv(String key, String fallback) {
+        String value = System.getenv(key);
+        return (value != null && !value.isEmpty()) ? value : fallback;
     }
 
     public int createUser(String name, String username, String password) {
@@ -65,23 +69,19 @@ public class DbController {
             pstmt.executeUpdate();
             return 1;
         } catch (SQLIntegrityConstraintViolationException e) {
-            //System.out.println("Error to create User" +e);
             return 2;
-        }
-        catch (Exception e) {
-            System.out.println("Something want wrong " + e);
+        } catch (Exception e) {
+            System.out.println("Something went wrong " + e);
             return 3;
         }
     }
 
     public String validateUser(String username, String password) {
-        // 1) quick input guard
         if (username == null || password == null) return null;
         username = username.trim();
         password = password.trim();
         if (username.isEmpty() || password.isEmpty()) return null;
 
-        // 2) defensive check that connection exists
         try {
             if (connection == null || connection.isClosed()) {
                 System.out.println("validateUser: DB connection is null or closed!");
@@ -92,21 +92,13 @@ public class DbController {
             return null;
         }
 
-        // 3) query using try-with-resources to avoid leaks and to log problems
         String sql = "SELECT name FROM users WHERE username = ? AND password = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
             ps.setString(2, password);
-
-            System.out.println("validateUser: executing query for username='" + username + "'");
-
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    String name = rs.getString("name");
-                    System.out.println("validateUser: user found, name=" + name);
-                    return name;
-                } else {
-                    System.out.println("validateUser: no matching user found for username='" + username + "'");
+                    return rs.getString("name");
                 }
             }
         } catch (SQLException sq) {
@@ -114,7 +106,6 @@ public class DbController {
         } catch (Exception ex) {
             System.out.println("validateUser: unexpected error: " + ex);
         }
-
         return null;
     }
 
@@ -123,7 +114,7 @@ public class DbController {
         try {
             String query = "SELECT username FROM users WHERE username = ?";
             PreparedStatement ps = connection.prepareStatement(query);
-            ps.setString(1, username); // exact match, not partial
+            ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 user = rs.getString("username");
@@ -136,8 +127,7 @@ public class DbController {
         return user;
     }
 
-
-    public void insertMessage(Message message)throws SQLException {
+    public void insertMessage(Message message) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("insert into Message(sender,receiver,message) value(?,?,?)");
         statement.setString(1, message.sender);
         statement.setString(2, message.receiver);
@@ -145,10 +135,10 @@ public class DbController {
         statement.executeUpdate();
     }
 
-    public ResultSet getReceiverName(String username)throws SQLException{
+    public ResultSet getReceiverName(String username) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("select distinct receiver, sender from Message where sender=? or receiver=?");
-        statement.setString(1,username);
-        statement.setString(2,username);
+        statement.setString(1, username);
+        statement.setString(2, username);
         return statement.executeQuery();
     }
 
@@ -170,14 +160,10 @@ public class DbController {
                     message.receiver = resultSet.getString("receiver");
                     message.message = resultSet.getString("message");
                     message.timestamp = resultSet.getTimestamp("timestamps");
-
-                    Messages.add(message);  // Add each message to the list
+                    Messages.add(message);
                 }
             }
         }
-
-
         return Messages;
     }
-
 }
