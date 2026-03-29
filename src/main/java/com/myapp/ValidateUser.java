@@ -1,7 +1,6 @@
 package com.myapp;
 
 import com.myapp.Database.DbController;
-import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -14,16 +13,26 @@ public class ValidateUser extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String username = req.getParameter("username");
-        DbController obj = new DbController();
-        try{
-            String user = obj.getUsers(username);
-            System.out.println("Database user " + user);
-            resp.setContentType("text/html");
-            resp.getWriter().write(user);
-        } catch(Exception e) {
-            System.out.println("Exception is " + e);
+        resp.setContentType("text/plain");
+        resp.setCharacterEncoding("UTF-8");
+
+        // ✅ Check if username parameter is empty
+        if (username == null || username.trim().isEmpty()) {
+            resp.getWriter().write("");
+            return;
         }
 
+        try {
+            DbController obj = new DbController();
+            String user = obj.getUsers(username.trim());
+            System.out.println("Database user: " + user);
 
+            // ✅ Write empty string instead of null if user not found
+            resp.getWriter().write(user != null ? user : "");
+
+        } catch (Exception e) {
+            System.out.println("Exception in validateUser: " + e);
+            resp.getWriter().write("");
+        }
     }
 }

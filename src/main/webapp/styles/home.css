@@ -7,178 +7,328 @@
 
 body {
     font-family: 'Segoe UI', sans-serif;
-    background: #0f172a !important;
-    color: white;
+    background: #efeae2;
+    color: #111;
 }
 
 /* ===== LAYOUT ===== */
 main {
     display: grid;
-    grid-template-columns: 70px 300px 1fr;
+    grid-template-columns: 70px 320px 1fr;
     height: 100vh;
 }
 
 /* ===== SIDEBAR ===== */
-section:nth-child(1) {
-    background: #020617 !important;
+.sidebar {
+    background: #ffffff;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
     padding: 15px 0;
-    border-right: 1px solid #1e293b;
+    border-right: 1px solid #ddd;
 }
 
-.btn i, .btn button {
+/* Buttons container */
+.btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+}
+
+/* Sidebar buttons */
+.btn button,
+.btn a {
     font-size: 20px;
-    color: #cbd5f5;
-    margin: 12px 0;
-    cursor: pointer;
-    background: transparent !important;
+    color: #54656f;
+    background: transparent;
     border: none;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
 }
 
-.btn i:hover, .btn button:hover {
-    color: white;
+/* Hover */
+.btn button:hover,
+.btn a:hover {
+    background: #f0f2f5;
+    color: #111;
 }
 
 /* ===== CHAT LIST ===== */
 section:nth-child(2) {
-    background: #020617 !important;
-    padding: 15px;
-    border-right: 1px solid #1e293b;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ddd;
 }
 
+/* Header */
 #welcome-text {
-    font-size: 18px;
-    margin-bottom: 10px;
+    padding: 15px;
+    font-weight: 500;
+    color: #667781;
 }
 
+/* Title */
+#title {
+    padding: 0 15px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    display: block;
+}
+
+/* Search */
 #find {
-    width: 100%;
+    margin: 10px 15px;
     padding: 10px;
     border-radius: 8px;
     border: none;
-    background: #1e293b;
-    color: white;
-    margin: 10px 0;
+    background: #f0f2f5;
+    outline: none;
+    width: calc(100% - 30px);
 }
 
+/* Chat list item */
 .name {
     width: 100%;
-    padding: 10px;
-    background: #1e293b;
+    padding: 12px 15px;
     border: none;
-    border-radius: 10px;
-    color: white;
+    background: transparent;
     text-align: left;
     cursor: pointer;
-    margin-top: 5px;
+    transition: 0.2s;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
 }
 
 .name:hover {
-    background: #334155;
+    background: #f5f6f6;
 }
 
-/* ===== MAIN CHAT WRAPPER ===== */
+/* ===== MAIN CHAT ===== */
 #main {
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: #020617;
+    background: url("https://www.transparenttextures.com/patterns/cubes.png");
 }
 
 /* ===== HEADER ===== */
 .pro {
     display: flex;
     align-items: center;
-    padding: 12px;
-    background: #020617 !important;
-    border-bottom: 1px solid #1e293b;
+    padding: 12px 15px;
+    background: #f0f2f5;
+    border-bottom: 1px solid #ddd;
 }
 
 #username {
-    font-weight: bold;
-    margin-left: 10px;
+    font-weight: 600;
 }
 
 /* ===== CHAT AREA ===== */
 #chat-area {
     flex: 1;
-    overflow-y: auto;
     padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 /* ===== CHAT BUBBLES ===== */
+
+/* Sent (You) */
 .colorClass {
-    background: #2563eb !important;
-    padding: 10px 15px;
-    border-radius: 15px 15px 0 15px;
+    background: #d9fdd3;
+    padding: 10px 14px;
+    border-radius: 10px;
     margin: 5px 0;
     margin-left: auto;
     max-width: 60%;
+    font-size: 14px;
+    word-wrap: break-word;
 }
 
-.reciverChat {
-    background: #1e293b !important;
-    padding: 10px 15px;
-    border-radius: 15px 15px 15px 0;
+/* Received */
+.receiverChat {
+    background: #ffffff;
+    padding: 10px 14px;
+    border-radius: 10px;
     margin: 5px 0;
     max-width: 60%;
+    font-size: 14px;
+    border: 1px solid #e5e5e5;
+    word-wrap: break-word;
 }
 
 /* ===== INPUT AREA ===== */
 .pro input[type="text"] {
     flex: 1;
-    padding: 10px;
-    border-radius: 20px;
+    padding: 10px 15px;
+    border-radius: 25px;
     border: none;
-    background: #1e293b !important;
-    color: white;
+    background: #ffffff;
     margin: 0 10px;
+    outline: none;
 }
 
-/* ===== BUTTONS ===== */
+/* ===== SEND BUTTON ===== */
 #send-btn {
-    background: #2563eb !important;
+    background: #25d366 !important;
     border: none;
     border-radius: 50%;
-    padding: 10px;
+    width: 42px;
+    height: 42px;
+    color: white;
     cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
 }
 
-#file-btn, #video-btn {
+#send-btn:hover {
+    background: #20c75a !important;
+    transform: scale(1.1);
+}
+
+/* ===== FILE & VIDEO BUTTONS ===== */
+#file-btn,
+#video-btn {
     background: transparent !important;
     border: none;
     font-size: 20px;
+    color: #54656f;
     cursor: pointer;
-    color: white;
+    padding: 8px;
+    border-radius: 50%;
+    transition: 0.2s;
+}
+
+#file-btn:hover,
+#video-btn:hover {
+    background: #e9edef !important;
 }
 
 /* ===== POPUP ===== */
 #popup {
-    position: absolute;
-    background: #1e293b;
+    position: fixed;
+    left: 90px;
+    top: 80px;
+    background: #ffffff;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 12px;
     transform: scale(0);
+    transform-origin: top left;
     transition: 0.3s;
+    z-index: 999;
+    min-width: 280px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border: 1px solid #ddd;
 }
 
-/* ===== VIDEO MODAL FIX ===== */
-#videoModal {
-    display: none;
+/* ✅ Show popup when active */
+#popup.active {
+    transform: scale(1);
 }
 
-/* ===== FORCE OVERRIDE INLINE STYLES ===== */
-button {
-    background: transparent !important;
+#title-bar span {
+    font-size: 16px;
+    font-weight: bold;
+    color: #111;
+    display: block;
+    margin-bottom: 14px;
+}
+
+/* ✅ Search input inside popup */
+#popup input.abc {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #f0f2f5;
+    color: #111;
+    margin-bottom: 12px;
+    outline: none;
+    font-size: 14px;
+}
+
+#popup input.abc:focus {
+    border-color: #25d366;
+    background: #ffffff;
+}
+
+#popup input.abc::placeholder {
+    color: #aaa;
+}
+
+/* ✅ Say Hi button */
+#userbutton button {
+    width: 100%;
+    padding: 10px;
+    background: #25d366 !important;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    font-size: 14px;
+    transition: 0.2s;
+}
+
+#userbutton button:hover {
+    background: #20c75a !important;
+}
+
+#userbutton p {
+    color: #999;
+    font-size: 13px;
+    margin: 6px 0;
+}
+
+/* ✅ Close button */
+#btnc {
+    width: 100%;
+    padding: 9px;
+    background: #f0f2f5 !important;
+    color: #111;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.2s;
+    margin-top: 4px;
+}
+
+#btnc:hover {
+    background: #e2e5e9 !important;
 }
 
 /* ===== SCROLLBAR ===== */
 #chat-area::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
 }
+
 #chat-area::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: #ccc;
+    border-radius: 10px;
+}
+
+/* ===== EMPTY TEXT ===== */
+.para {
+    text-align: center;
+    margin-top: 40%;
+    color: #667781;
 }
