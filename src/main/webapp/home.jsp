@@ -337,86 +337,192 @@
         }
     });
 
-    // ========== VIDEO CALL ==========
-    const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-    let peerConnection = null;
-    let localStream = null;
-    let signalSocket = null;
+   // ========== VIDEO CALL ==========
+   const rtcConfig = {
+       iceServers: [
+           { urls: "stun:stun.l.google.com:19302" },
+           { urls: "stun:stun1.l.google.com:19302" }
+       ]
+   };
+   let peerConnection = null;
+   let localStream = null;
+   let signalSocket = null;
+   let incomingSignalSocket = null;
 
-    function startVideoCall() {
-        const receiver = document.getElementById('username').innerHTML.trim();
-        if (!receiver || receiver === 'username') {
-            alert("Please select a recipient first.");
-            return;
-        }
+   // ✅ Auto connect on page load to receive incoming calls
+   function connectIncomingSignal() {
+       const me = '<%= session.getAttribute("username") %>';
+       if (!me || me === 'null') return;
 
-        document.getElementById('videoModal').style.display = 'flex';
-        document.getElementById('remoteLabel').innerText = receiver;
+       const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+       const contextPath = '<%= request.getContextPath() %>';
 
-        const me = '<%= session.getAttribute("username") %>';
-        const roomId = [me, receiver].sort().join('_');
-        initWebRTC(roomId, true);
-    }
+       incomingSignalSocket = new WebSocket(
+           `${wsProtocol}://${window.location.host}${contextPath}/signal/incoming_${me}`
+       );
 
-    async function initWebRTC(roomId, isInitiator) {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        signalSocket = new WebSocket(`${wsProtocol}://${window.location.host}/signal/${roomId}`);
+       incomingSignalSocket.onopen = () => {
+           console.log("✅ Incoming signal connected for: " + me);
+       };
 
-        peerConnection = new RTCPeerConnection(rtcConfig);
+       incomingSignalSocket.onmessage = async (event) => {
+           const signal = JSON.parse(event.data);
 
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            document.getElementById('localVideo').srcObject = localStream;
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-        } catch (err) {
-            alert("Could not access camera/microphone.");
-            endCall();
-            return;
-        }
+           // ✅ Someone is calling you
+           if (signal.type === 'call-request') {
+               const caller = signal.caller;
+               const accept = confirm(`📹 Incoming video call from ${caller}. Accept?`);
 
-        peerConnection.onicecandidate = (e) => {
-            if (e.candidate && signalSocket.readyState === WebSocket.OPEN) {
-                signalSocket.send(JSON.stringify({ type: 'ice-candidate', data: e.candidate }));
-            }
-        };
+               if (accept) {
+                   document.getElementById('username').innerHTML = caller;
+                   document.getElementById('videoModal').style.display = 'flex';
+                   document.getElementById('remoteLabel').innerText = caller;
 
-        peerConnection.ontrack = (e) => {
-            document.getElementById('remoteVideo').srcObject = e.streams[0];
-        };
+                   const me = '<%= session.getAttribute("username") %>';
+                   const roomId = [me, caller].sort().join('_');
+                   initWebRTC(roomId, false); // false = receiver not initiator
+               }
+           }
+       };
 
-        signalSocket.onmessage = async (event) => {
-            const signal = JSON.parse(event.data);
-            if (signal.type === 'offer') {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                signalSocket.send(JSON.stringify({ type: 'answer', data: answer }));
-            } else if (signal.type === 'answer') {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
-            } else if (signal.type === 'ice-candidate') {
-                try {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(signal.data));
-                } catch (e) { console.error("ICE error:", e); }
-            }
-        };
+       incomingSignalSocket.onclose = () => {
+           // ✅ Auto reconnect after 3 seconds if disconnected
+           console.log("Incoming signal disconnected, reconnecting...");
+           setTimeout(connectIncomingSignal, 3000);
+       };
 
-        if (isInitiator) {
-            signalSocket.onopen = async () => {
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                signalSocket.send(JSON.stringify({ type: 'offer', data: offer }));
-            };
-        }
-    }
+       incomingSignalSocket.onerror = (e) => {
+           console.error("Incoming signal error:", e);
+       };
+   }
 
-    function endCall() {
-        if (peerConnection) { peerConnection.close(); peerConnection = null; }
-        if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-        if (signalSocket) { signalSocket.close(); signalSocket = null; }
-        document.getElementById('localVideo').srcObject = null;
-        document.getElementById('remoteVideo').srcObject = null;
-        document.getElementById('videoModal').style.display = 'none';
-    }
+   // ✅ Start this when page loads
+   connectIncomingSignal();
+
+   function startVideoCall() {
+       const receiver = document.getElementById('username').innerHTML.trim();
+       if (!receiver || receiver === 'username') {
+           alert("Please select a recipient first.");
+           return;
+       }
+
+       document.getElementById('videoModal').style.display = 'flex';
+       document.getElementById('remoteLabel').innerText = receiver;
+
+       const me = '<%= session.getAttribute("username") %>';
+       const roomId = [me, receiver].sort().join('_');
+       const contextPath = '<%= request.getContextPath() %>';
+       const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+       // ✅ Notify recipient about incoming call first
+       const notifySocket = new WebSocket(
+           `${wsProtocol}://${window.location.host}${contextPath}/signal/incoming_${receiver}`
+       );
+
+       notifySocket.onopen = () => {
+           notifySocket.send(JSON.stringify({
+               type: 'call-request',
+               caller: me
+           }));
+           console.log("✅ Call request sent to: " + receiver);
+           // Close notify socket after sending
+           setTimeout(() => notifySocket.close(), 1000);
+       };
+
+       notifySocket.onerror = (e) => {
+           console.error("Notify socket error:", e);
+       };
+
+       // ✅ Start WebRTC as initiator
+       initWebRTC(roomId, true);
+   }
+
+   async function initWebRTC(roomId, isInitiator) {
+       const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+       const contextPath = '<%= request.getContextPath() %>';
+
+       // ✅ Fixed WebSocket URL with context path
+       signalSocket = new WebSocket(
+           `${wsProtocol}://${window.location.host}${contextPath}/signal/${roomId}`
+       );
+
+       peerConnection = new RTCPeerConnection(rtcConfig);
+
+       // ✅ Get camera and mic
+       try {
+           localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+           document.getElementById('localVideo').srcObject = localStream;
+           localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+       } catch (err) {
+           alert("Could not access camera/microphone. Please check permissions.");
+           endCall();
+           return;
+       }
+
+       // ✅ Send ICE candidates
+       peerConnection.onicecandidate = (e) => {
+           if (e.candidate && signalSocket.readyState === WebSocket.OPEN) {
+               signalSocket.send(JSON.stringify({ type: 'ice-candidate', data: e.candidate }));
+           }
+       };
+
+       // ✅ Show remote video
+       peerConnection.ontrack = (e) => {
+           console.log("✅ Remote track received");
+           document.getElementById('remoteVideo').srcObject = e.streams[0];
+       };
+
+       // ✅ Handle incoming signals
+       signalSocket.onmessage = async (event) => {
+           const signal = JSON.parse(event.data);
+           console.log("Signal received:", signal.type);
+
+           if (signal.type === 'offer') {
+               await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
+               const answer = await peerConnection.createAnswer();
+               await peerConnection.setLocalDescription(answer);
+               signalSocket.send(JSON.stringify({ type: 'answer', data: answer }));
+
+           } else if (signal.type === 'answer') {
+               await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
+
+           } else if (signal.type === 'ice-candidate') {
+               try {
+                   await peerConnection.addIceCandidate(new RTCIceCandidate(signal.data));
+               } catch (e) {
+                   console.error("ICE error:", e);
+               }
+           }
+       };
+
+       signalSocket.onerror = (e) => {
+           console.error("Signal socket error:", e);
+       };
+
+       signalSocket.onclose = () => {
+           console.log("Signal socket closed");
+       };
+
+       // ✅ If initiator create and send offer
+       if (isInitiator) {
+           signalSocket.onopen = async () => {
+               console.log("✅ Signal socket open, creating offer...");
+               const offer = await peerConnection.createOffer();
+               await peerConnection.setLocalDescription(offer);
+               signalSocket.send(JSON.stringify({ type: 'offer', data: offer }));
+           };
+       }
+   }
+
+   function endCall() {
+       if (peerConnection) { peerConnection.close(); peerConnection = null; }
+       if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+       if (signalSocket) { signalSocket.close(); signalSocket = null; }
+       document.getElementById('localVideo').srcObject = null;
+       document.getElementById('remoteVideo').srcObject = null;
+       document.getElementById('videoModal').style.display = 'none';
+   }
+
 
 </script>
 </body>
