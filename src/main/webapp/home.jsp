@@ -8,7 +8,7 @@
 
     <!-- External Styles -->
     <link rel="stylesheet" href="styles/all.min.css">
-    <link rel="stylesheet" href="<%= request.getContextPath() %>/styles/home.css?v=13">
+    <link rel="stylesheet" href="<%= request.getContextPath() %>/styles/home.css?v=14">
 
     <!-- Icons -->
     <script src="scripts/all.min.js"></script>
@@ -16,27 +16,23 @@
 <body>
 <main>
 
-    <!-- ✅ SIDEBAR -->
+    <!-- SIDEBAR -->
     <section class="sidebar">
-
         <div class="btn top">
             <button><i class="fa-regular fa-message"></i></button>
             <button><i class="fa-regular fa-comment-dots"></i></button>
-
             <button type="button" id="showpopup">
                 <i class="fa-solid fa-plus"></i>
             </button>
         </div>
-
         <div class="btn bottom">
             <a href="logout">
                 <i class="fa-solid fa-arrow-right-from-bracket"></i>
             </a>
         </div>
-
     </section>
 
-    <!-- ✅ POPUP OUTSIDE SIDEBAR -->
+    <!-- POPUP -->
     <div id="popup">
         <div id="title-bar">
             <span>Add Recipient</span>
@@ -51,15 +47,12 @@
     <!-- Chat List -->
     <section>
         <% if((String)request.getSession().getAttribute("username") != null){ %>
-            <p id="welcome-text">
-                Hello, <%= (String)request.getSession().getAttribute("name") %> 👋
-            </p>
+            <p id="welcome-text">Hello, <%= (String)request.getSession().getAttribute("name") %> 👋</p>
         <% } else {
             response.sendRedirect("index.jsp");
         } %>
-
         <label id="title">Chats</label>
-        <input id="find" type="text" placeholder="Search..">
+        <input id="find" type="text" placeholder="Search chats..." autocomplete="off">
         <div id="RecpArea"></div>
     </section>
 
@@ -90,7 +83,7 @@
                 <button onclick="endCall()"
                     style="background:red; color:white; border:none; padding:10px 30px;
                            border-radius:25px; font-size:16px; cursor:pointer;">
-                    🔴 End Call
+                         🔴 End Call
                 </button>
             </div>
 
@@ -132,14 +125,13 @@
         popup.classList.remove('active');
     };
 
-    // Close popup when clicking outside
     document.addEventListener('click', function(e) {
         if (!popup.contains(e.target) && e.target.id !== 'showpopup') {
             popup.classList.remove('active');
         }
     });
 
-    // ========== SEARCH USER (ADD FRIEND) ==========
+    // ========== SEARCH USER IN POPUP ==========
     document.querySelector('.abc').addEventListener('keyup', function () {
         const inputVal = this.value.trim();
         const userButton = document.getElementById('userbutton');
@@ -183,7 +175,7 @@
                     popup.classList.remove('active');
                     document.querySelector('.abc').value = '';
                     document.getElementById('userbutton').innerHTML = '';
-                    getReceiver(); // refresh chat list
+                    getReceiver();
                 } else {
                     alert("Failed to send message. Please try again.");
                 }
@@ -212,7 +204,6 @@
     }
 
     document.getElementById("send-btn").addEventListener("click", MessageInChats);
-
     document.getElementById("msgText").addEventListener("keydown", function (e) {
         if (e.key === "Enter") MessageInChats();
     });
@@ -230,7 +221,7 @@
 
                 for (let ro of responseObject) {
                     area.innerHTML += `
-                        <div id="Box">
+                        <div class="chatBox">
                             <button class="name">
                                 <img src="images/usericon.png" width="25" height="25"
                                      onerror="this.style.display='none'">${ro}
@@ -242,6 +233,24 @@
         xhr.send();
     }
     getReceiver();
+
+    // ========== SEARCH EXISTING CHATS ✅ ==========
+    document.getElementById('find').addEventListener('keyup', function () {
+        const searchVal = this.value.trim().toLowerCase();
+        const allBoxes = document.querySelectorAll('#RecpArea .chatBox');
+
+        allBoxes.forEach(box => {
+            const nameBtn = box.querySelector('.name');
+            if (nameBtn) {
+                const name = nameBtn.textContent.trim().toLowerCase();
+                if (name.includes(searchVal)) {
+                    box.style.display = 'block'; // ✅ show
+                } else {
+                    box.style.display = 'none';  // ❌ hide
+                }
+            }
+        });
+    });
 
     // ========== LOAD MESSAGES ==========
     function getMessages() {
@@ -337,192 +346,171 @@
         }
     });
 
-   // ========== VIDEO CALL ==========
-   const rtcConfig = {
-       iceServers: [
-           { urls: "stun:stun.l.google.com:19302" },
-           { urls: "stun:stun1.l.google.com:19302" }
-       ]
-   };
-   let peerConnection = null;
-   let localStream = null;
-   let signalSocket = null;
-   let incomingSignalSocket = null;
+    // ========== VIDEO CALL ==========
+    const rtcConfig = {
+        iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" }
+        ]
+    };
+    let peerConnection = null;
+    let localStream = null;
+    let signalSocket = null;
+    let incomingSignalSocket = null;
 
-   // ✅ Auto connect on page load to receive incoming calls
-   function connectIncomingSignal() {
-       const me = '<%= session.getAttribute("username") %>';
-       if (!me || me === 'null') return;
+    function connectIncomingSignal() {
+        const me = '<%= session.getAttribute("username") %>';
+        if (!me || me === 'null') return;
 
-       const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-       const contextPath = '<%= request.getContextPath() %>';
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
-       incomingSignalSocket = new WebSocket(
-           `${wsProtocol}://${window.location.host}${contextPath}/signal/incoming_${me}`
-       );
+        incomingSignalSocket = new WebSocket(
+            `${wsProtocol}://${window.location.host}/signal/incoming_${me}`
+        );
 
-       incomingSignalSocket.onopen = () => {
-           console.log("✅ Incoming signal connected for: " + me);
-       };
+        incomingSignalSocket.onopen = () => {
+            console.log("✅ Waiting for incoming calls as: " + me);
+        };
 
-       incomingSignalSocket.onmessage = async (event) => {
-           const signal = JSON.parse(event.data);
+        incomingSignalSocket.onmessage = async (event) => {
+            const signal = JSON.parse(event.data);
 
-           // ✅ Someone is calling you
-           if (signal.type === 'call-request') {
-               const caller = signal.caller;
-               const accept = confirm(`📹 Incoming video call from ${caller}. Accept?`);
+            if (signal.type === 'call-request') {
+                const caller = signal.caller;
+                const accept = confirm(`📹 Incoming video call from ${caller}. Accept?`);
 
-               if (accept) {
-                   document.getElementById('username').innerHTML = caller;
-                   document.getElementById('videoModal').style.display = 'flex';
-                   document.getElementById('remoteLabel').innerText = caller;
+                if (accept) {
+                    document.getElementById('videoModal').style.display = 'flex';
+                    document.getElementById('remoteLabel').innerText = caller;
 
-                   const me = '<%= session.getAttribute("username") %>';
-                   const roomId = [me, caller].sort().join('_');
-                   initWebRTC(roomId, false); // false = receiver not initiator
-               }
-           }
-       };
+                    const me = '<%= session.getAttribute("username") %>';
+                    const roomId = [me, caller].sort().join('_');
+                    initWebRTC(roomId, false);
+                }
+            }
+        };
 
-       incomingSignalSocket.onclose = () => {
-           // ✅ Auto reconnect after 3 seconds if disconnected
-           console.log("Incoming signal disconnected, reconnecting...");
-           setTimeout(connectIncomingSignal, 3000);
-       };
+        incomingSignalSocket.onclose = () => {
+            console.log("Disconnected, reconnecting in 3s...");
+            setTimeout(connectIncomingSignal, 3000);
+        };
 
-       incomingSignalSocket.onerror = (e) => {
-           console.error("Incoming signal error:", e);
-       };
-   }
+        incomingSignalSocket.onerror = (e) => {
+            console.error("Incoming signal error:", e);
+        };
+    }
 
-   // ✅ Start this when page loads
-   connectIncomingSignal();
+    connectIncomingSignal();
 
-   function startVideoCall() {
-       const receiver = document.getElementById('username').innerHTML.trim();
-       if (!receiver || receiver === 'username') {
-           alert("Please select a recipient first.");
-           return;
-       }
+    function startVideoCall() {
+        const receiver = document.getElementById('username').innerHTML.trim();
+        if (!receiver || receiver === 'username') {
+            alert("Please select a recipient first.");
+            return;
+        }
 
-       document.getElementById('videoModal').style.display = 'flex';
-       document.getElementById('remoteLabel').innerText = receiver;
+        document.getElementById('videoModal').style.display = 'flex';
+        document.getElementById('remoteLabel').innerText = receiver;
 
-       const me = '<%= session.getAttribute("username") %>';
-       const roomId = [me, receiver].sort().join('_');
-       const contextPath = '<%= request.getContextPath() %>';
-       const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const me = '<%= session.getAttribute("username") %>';
+        const roomId = [me, receiver].sort().join('_');
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
-       // ✅ Notify recipient about incoming call first
-       const notifySocket = new WebSocket(
-           `${wsProtocol}://${window.location.host}${contextPath}/signal/incoming_${receiver}`
-       );
+        const notifySocket = new WebSocket(
+            `${wsProtocol}://${window.location.host}/signal/incoming_${receiver}`
+        );
 
-       notifySocket.onopen = () => {
-           notifySocket.send(JSON.stringify({
-               type: 'call-request',
-               caller: me
-           }));
-           console.log("✅ Call request sent to: " + receiver);
-           // Close notify socket after sending
-           setTimeout(() => notifySocket.close(), 1000);
-       };
+        notifySocket.onopen = () => {
+            notifySocket.send(JSON.stringify({
+                type: 'call-request',
+                caller: me
+            }));
+            console.log("✅ Call request sent to: " + receiver);
+            setTimeout(() => notifySocket.close(), 1000);
+        };
 
-       notifySocket.onerror = (e) => {
-           console.error("Notify socket error:", e);
-       };
+        notifySocket.onerror = (e) => {
+            console.error("Notify error:", e);
+        };
 
-       // ✅ Start WebRTC as initiator
-       initWebRTC(roomId, true);
-   }
+        initWebRTC(roomId, true);
+    }
 
-   async function initWebRTC(roomId, isInitiator) {
-       const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-       const contextPath = '<%= request.getContextPath() %>';
+    async function initWebRTC(roomId, isInitiator) {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
-       // ✅ Fixed WebSocket URL with context path
-       signalSocket = new WebSocket(
-           `${wsProtocol}://${window.location.host}${contextPath}/signal/${roomId}`
-       );
+        peerConnection = new RTCPeerConnection(rtcConfig);
 
-       peerConnection = new RTCPeerConnection(rtcConfig);
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('localVideo').srcObject = localStream;
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        } catch (err) {
+            alert("Could not access camera/microphone. Please allow permission and try again.");
+            endCall();
+            return;
+        }
 
-       // ✅ Get camera and mic
-       try {
-           localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-           document.getElementById('localVideo').srcObject = localStream;
-           localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-       } catch (err) {
-           alert("Could not access camera/microphone. Please check permissions.");
-           endCall();
-           return;
-       }
+        signalSocket = new WebSocket(
+            `${wsProtocol}://${window.location.host}/signal/${roomId}`
+        );
 
-       // ✅ Send ICE candidates
-       peerConnection.onicecandidate = (e) => {
-           if (e.candidate && signalSocket.readyState === WebSocket.OPEN) {
-               signalSocket.send(JSON.stringify({ type: 'ice-candidate', data: e.candidate }));
-           }
-       };
+        peerConnection.onicecandidate = (e) => {
+            if (e.candidate && signalSocket.readyState === WebSocket.OPEN) {
+                signalSocket.send(JSON.stringify({ type: 'ice-candidate', data: e.candidate }));
+            }
+        };
 
-       // ✅ Show remote video
-       peerConnection.ontrack = (e) => {
-           console.log("✅ Remote track received");
-           document.getElementById('remoteVideo').srcObject = e.streams[0];
-       };
+        peerConnection.ontrack = (e) => {
+            console.log("✅ Remote stream received");
+            document.getElementById('remoteVideo').srcObject = e.streams[0];
+        };
 
-       // ✅ Handle incoming signals
-       signalSocket.onmessage = async (event) => {
-           const signal = JSON.parse(event.data);
-           console.log("Signal received:", signal.type);
+        signalSocket.onmessage = async (event) => {
+            const signal = JSON.parse(event.data);
+            console.log("Signal received:", signal.type);
 
-           if (signal.type === 'offer') {
-               await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
-               const answer = await peerConnection.createAnswer();
-               await peerConnection.setLocalDescription(answer);
-               signalSocket.send(JSON.stringify({ type: 'answer', data: answer }));
+            if (signal.type === 'offer') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                signalSocket.send(JSON.stringify({ type: 'answer', data: answer }));
 
-           } else if (signal.type === 'answer') {
-               await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
+            } else if (signal.type === 'answer') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
 
-           } else if (signal.type === 'ice-candidate') {
-               try {
-                   await peerConnection.addIceCandidate(new RTCIceCandidate(signal.data));
-               } catch (e) {
-                   console.error("ICE error:", e);
-               }
-           }
-       };
+            } else if (signal.type === 'ice-candidate') {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(signal.data));
+                } catch (e) { console.error("ICE error:", e); }
+            }
+        };
 
-       signalSocket.onerror = (e) => {
-           console.error("Signal socket error:", e);
-       };
+        signalSocket.onerror = (e) => console.error("Signal error:", e);
+        signalSocket.onclose = () => console.log("Signal closed");
 
-       signalSocket.onclose = () => {
-           console.log("Signal socket closed");
-       };
+        if (isInitiator) {
+            signalSocket.onopen = async () => {
+                console.log("✅ Initiator: sending offer...");
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                signalSocket.send(JSON.stringify({ type: 'offer', data: offer }));
+            };
+        } else {
+            signalSocket.onopen = () => {
+                console.log("✅ Receiver: ready, waiting for offer...");
+            };
+        }
+    }
 
-       // ✅ If initiator create and send offer
-       if (isInitiator) {
-           signalSocket.onopen = async () => {
-               console.log("✅ Signal socket open, creating offer...");
-               const offer = await peerConnection.createOffer();
-               await peerConnection.setLocalDescription(offer);
-               signalSocket.send(JSON.stringify({ type: 'offer', data: offer }));
-           };
-       }
-   }
-
-   function endCall() {
-       if (peerConnection) { peerConnection.close(); peerConnection = null; }
-       if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-       if (signalSocket) { signalSocket.close(); signalSocket = null; }
-       document.getElementById('localVideo').srcObject = null;
-       document.getElementById('remoteVideo').srcObject = null;
-       document.getElementById('videoModal').style.display = 'none';
-   }
-
+    function endCall() {
+        if (peerConnection) { peerConnection.close(); peerConnection = null; }
+        if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+        if (signalSocket) { signalSocket.close(); signalSocket = null; }
+        document.getElementById('localVideo').srcObject = null;
+        document.getElementById('remoteVideo').srcObject = null;
+        document.getElementById('videoModal').style.display = 'none';
+    }
 
 </script>
 </body>
