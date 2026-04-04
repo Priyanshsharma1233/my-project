@@ -7,9 +7,8 @@
     <title>Home | MyChats</title>
 
     <!-- External Styles -->
-  <!-- ✅ Use CDN instead -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
+    <link rel="stylesheet" href="styles/all.min.css">
+    <link rel="stylesheet" href="styles/home.css?v=15">
     <!-- Icons -->
     <script src="scripts/all.min.js"></script>
 </head>
