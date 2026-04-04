@@ -2,15 +2,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home | MyChats</title>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Home | MyChats</title>
 
-    <!-- External Styles -->
-    <link rel="stylesheet" href="styles/all.min.css">
-    <link rel="stylesheet" href="styles/home.css?v=15">
-    <!-- Icons -->
-    <script src="scripts/all.min.js"></script>
+        <!-- ✅ Font Awesome CDN -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+        <!-- ✅ Your CSS - no context path -->
+        <link rel="stylesheet" href="styles/home.css?v=15">
+    </head>
 </head>
 <body>
 <main>
