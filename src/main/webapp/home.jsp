@@ -8,7 +8,7 @@
 
     <!-- External Styles -->
     <link rel="stylesheet" href="styles/all.min.css">
-    <link rel="stylesheet" href="<%= request.getContextPath() %>/styles/home.css?v=14">
+    <link rel="stylesheet" href="<%= request.getContextPath() %>/styles/home.css?v=15">
 
     <!-- Icons -->
     <script src="scripts/all.min.js"></script>
@@ -83,7 +83,7 @@
                 <button onclick="endCall()"
                     style="background:red; color:white; border:none; padding:10px 30px;
                            border-radius:25px; font-size:16px; cursor:pointer;">
-                         🔴 End Call
+                    🔴 End Call
                 </button>
             </div>
 
@@ -215,7 +215,17 @@
 
         xhr.onload = function () {
             if (xhr.status === 200) {
-                const responseObject = JSON.parse(xhr.responseText);
+
+                // ✅ Safe JSON parse
+                if (!xhr.responseText || xhr.responseText.trim() === '') return;
+                let responseObject;
+                try {
+                    responseObject = JSON.parse(xhr.responseText);
+                } catch (e) {
+                    console.log("getReceiver JSON error:", xhr.responseText);
+                    return;
+                }
+
                 const area = document.querySelector('#RecpArea');
                 area.innerHTML = '';
 
@@ -234,7 +244,7 @@
     }
     getReceiver();
 
-    // ========== SEARCH EXISTING CHATS ✅ ==========
+    // ========== SEARCH EXISTING CHATS ==========
     document.getElementById('find').addEventListener('keyup', function () {
         const searchVal = this.value.trim().toLowerCase();
         const allBoxes = document.querySelectorAll('#RecpArea .chatBox');
@@ -244,9 +254,9 @@
             if (nameBtn) {
                 const name = nameBtn.textContent.trim().toLowerCase();
                 if (name.includes(searchVal)) {
-                    box.style.display = 'block'; // ✅ show
+                    box.style.display = 'block';
                 } else {
-                    box.style.display = 'none';  // ❌ hide
+                    box.style.display = 'none';
                 }
             }
         });
@@ -259,7 +269,17 @@
 
         xhr.onload = function () {
             if (xhr.status === 200) {
-                const messages = JSON.parse(xhr.responseText);
+
+                // ✅ Safe JSON parse — fixes blank screen error
+                if (!xhr.responseText || xhr.responseText.trim() === '') return;
+                let messages;
+                try {
+                    messages = JSON.parse(xhr.responseText);
+                } catch (e) {
+                    console.log("getMessages JSON error:", xhr.responseText);
+                    return;
+                }
+
                 const area = document.getElementById('chat-area');
                 area.innerHTML = '';
 
