@@ -332,3 +332,63 @@ section:nth-child(2) {
     margin-top: 40%;
     color: #667781;
 }
+  /* ===== ONLINE INDICATOR ===== */
+        .online-dot {
+            width: 10px;
+            height: 10px;
+            background: #25d366;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .offline-dot {
+            width: 10px;
+            height: 10px;
+            background: #ccc;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        /* ===== ONLINE STATUS IN CHAT LIST ===== */
+        .chatBox {
+            position: relative;
+        }
+
+        .user-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+            display: inline-block;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+
+        .user-status.online {
+            background: #25d366;
+        }
+
+        /* ===== TYPING INDICATOR ===== */
+        #typing-indicator {
+            font-size: 12px;
+            color: #25d366;
+            padding: 0 15px;
+            height: 20px;
+            font-style: italic;
+            display: none;
+        }
+
+        #typing-indicator.visible {
+            display: block;
+        }
+
+        /* ===== HEADER STATUS ===== */
+        #header-status {
+            font-size: 12px;
+            color: #25d366;
+            margin-left: 8px;
+        }

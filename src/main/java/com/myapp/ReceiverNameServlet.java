@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.util.ArrayList;
@@ -19,21 +18,27 @@ public class ReceiverNameServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        System.out.println("Called");
+
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
         try {
             DbController db = new DbController();
             String currentUser = (String) request.getSession().getAttribute("username");
 
-            // Fetch receiver names related to current user
-            ResultSet rs = db.getReceiverName(currentUser);
+            if (currentUser == null) {
+                response.getWriter().write("[]");
+                return;
+            }
 
+            ResultSet rs = db.getReceiverName(currentUser);
             ArrayList<String> receivers = new ArrayList<>();
 
             while (rs.next()) {
-                String sender = rs.getString(1);
-                String receiver = rs.getString(2);
+                // ✅ Fixed — query returns "receiver, sender"
+                String receiver = rs.getString("receiver");
+                String sender = rs.getString("sender");
 
-                // ✅ Add only names that are NOT the current user
                 if (!sender.equalsIgnoreCase(currentUser) && !receivers.contains(sender)) {
                     receivers.add(sender);
                 }
@@ -41,16 +46,14 @@ public class ReceiverNameServlet extends HttpServlet {
                     receivers.add(receiver);
                 }
             }
-
-            // Convert to JSON and send response
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             String json = gson.toJson(receivers);
-
-            response.setContentType("application/json");
             response.getWriter().write(json);
 
         } catch (Exception e) {
             System.out.println("Exception while getting usernames: " + e);
+            // ✅ Return empty array on error
+            response.getWriter().write("[]");
         }
     }
 }

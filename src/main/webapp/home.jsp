@@ -1,18 +1,17 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <!DOCTYPE html>
 <html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home | MyChats</title>
 
-       <head>
-           <meta charset="UTF-8">
-           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-           <title>Home | MyChats</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="styles/all.min.css">
 
-           <!-- ✅ Local Font Awesome -->
-           <link rel="stylesheet" href="styles/all.min.css">
-
-           <!-- ✅ Your CSS -->
-           <link rel="stylesheet" href="styles/home.css?v=15">
-       </head>
+    <!-- App Styles -->
+    <link rel="stylesheet" href="styles/home.css?v=16">
+</head>
 <body>
 <main>
 
@@ -87,11 +86,17 @@
                 </button>
             </div>
 
-            <!-- HEADER -->
+            <!-- HEADER with online status -->
             <div class="pro">
-                <div id="username">username</div>
+                <div style="display:flex; flex-direction:column;">
+                    <div id="username">username</div>
+                    <span id="header-status"></span>
+                </div>
                 <button id="video-btn" onclick="startVideoCall()" style="margin-left:auto;">📹</button>
             </div>
+
+            <!-- TYPING INDICATOR -->
+            <div id="typing-indicator">typing...</div>
 
             <!-- CHAT -->
             <div id="chat-area"></div>
@@ -110,6 +115,8 @@
 </main>
 
 <script>
+
+    const ME = '<%= session.getAttribute("username") %>';
 
     // ========== POPUP CONTROLS ==========
     const popup = document.getElementById('popup');
@@ -197,6 +204,8 @@
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
                 document.querySelector('#msgText').value = '';
+                // ✅ Stop typing indicator when message sent
+                sendTypingStatus(false);
             }
         };
 
@@ -215,8 +224,6 @@
 
         xhr.onload = function () {
             if (xhr.status === 200) {
-
-                // ✅ Safe JSON parse
                 if (!xhr.responseText || xhr.responseText.trim() === '') return;
                 let responseObject;
                 try {
@@ -230,14 +237,19 @@
                 area.innerHTML = '';
 
                 for (let ro of responseObject) {
+                    // ✅ Add online status dot
                     area.innerHTML += `
-                        <div class="chatBox">
+                        <div class="chatBox" id="chatBox_${ro}">
                             <button class="name">
+                                <span class="user-status" id="status_${ro}"></span>
                                 <img src="images/usericon.png" width="25" height="25"
                                      onerror="this.style.display='none'">${ro}
                             </button>
                         </div>`;
                 }
+
+                // ✅ Check online status for all users
+                responseObject.forEach(user => checkOnlineStatus(user));
             }
         };
         xhr.send();
@@ -253,11 +265,7 @@
             const nameBtn = box.querySelector('.name');
             if (nameBtn) {
                 const name = nameBtn.textContent.trim().toLowerCase();
-                if (name.includes(searchVal)) {
-                    box.style.display = 'block';
-                } else {
-                    box.style.display = 'none';
-                }
+                box.style.display = name.includes(searchVal) ? 'block' : 'none';
             }
         });
     });
@@ -269,8 +277,6 @@
 
         xhr.onload = function () {
             if (xhr.status === 200) {
-
-                // ✅ Safe JSON parse — fixes blank screen error
                 if (!xhr.responseText || xhr.responseText.trim() === '') return;
                 let messages;
                 try {
@@ -321,6 +327,9 @@
 
                 try { document.querySelector('.para').style.display = 'none'; } catch(e) {}
 
+                // ✅ Update header online status
+                updateHeaderStatus(receiver);
+
                 setInterval(getMessages, 1000);
             }
         }
@@ -366,6 +375,167 @@
         }
     });
 
+    // ========== RESTORE SELECTED RECIPIENT ON REFRESH ==========
+    window.addEventListener('load', async function () {
+        const savedReceiver = '<%= session.getAttribute("receiver") != null ? session.getAttribute("receiver") : "" %>';
+
+        if (savedReceiver && savedReceiver !== '') {
+            // ✅ Set the username in header
+            document.getElementById('username').innerHTML = savedReceiver;
+
+            // ✅ Show the chat input and header
+            const pros = document.getElementsByClassName('pro');
+            for (let i = 0; i < pros.length; i++) pros[i].style.display = 'flex';
+
+            // ✅ Hide the "select recipient" message
+            try { document.querySelector('.para').style.display = 'none'; } catch(e) {}
+
+            // ✅ Update online status in header
+            updateHeaderStatus(savedReceiver);
+
+            // ✅ Start loading messages
+            setInterval(getMessages, 1000);
+
+            // ✅ Highlight the selected user in chat list
+            // Wait for chat list to load then highlight
+            setTimeout(() => {
+                const allNames = document.querySelectorAll('.name');
+                allNames.forEach(btn => {
+                    if (btn.textContent.trim() === savedReceiver) {
+                        btn.style.background = '#d9fdd3';
+                    }
+                });
+            }, 500);
+        }
+    });
+
+    // ========== ONLINE & TYPING (Presence WebSocket) ==========
+    let presenceSocket = null;
+    let typingTimer = null;
+    let onlineStatusMap = {}; // username -> true/false
+
+    function connectPresence() {
+        if (!ME || ME === 'null') return;
+
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        presenceSocket = new WebSocket(
+            `${wsProtocol}://${window.location.host}/presence/${ME}`
+        );
+
+        presenceSocket.onopen = () => {
+            console.log("✅ Presence connected");
+        };
+
+        presenceSocket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                const currentReceiver = document.getElementById('username').innerHTML.trim();
+
+                if (data.type === 'online') {
+                    // ✅ Mark user as online in chat list
+                    onlineStatusMap[data.user] = true;
+                    updateStatusDot(data.user, true);
+                    if (data.user === currentReceiver) updateHeaderStatus(currentReceiver);
+
+                } else if (data.type === 'offline') {
+                    // ✅ Mark user as offline
+                    onlineStatusMap[data.user] = false;
+                    updateStatusDot(data.user, false);
+                    if (data.user === currentReceiver) updateHeaderStatus(currentReceiver);
+
+                } else if (data.type === 'typing') {
+                    // ✅ Show typing indicator
+                    if (data.from === currentReceiver) {
+                        showTypingIndicator(data.isTyping);
+                    }
+                }
+            } catch (e) {
+                console.error("Presence message error:", e);
+            }
+        };
+
+        presenceSocket.onclose = () => {
+            console.log("Presence disconnected, reconnecting in 3s...");
+            setTimeout(connectPresence, 3000);
+        };
+
+        presenceSocket.onerror = (e) => {
+            console.error("Presence error:", e);
+        };
+    }
+
+    // ✅ Connect presence when page loads
+    connectPresence();
+
+    // ✅ Check if a specific user is online
+    function checkOnlineStatus(username) {
+        const dot = document.getElementById('status_' + username);
+        if (dot) {
+            dot.classList.toggle('online', onlineStatusMap[username] === true);
+        }
+    }
+
+    // ✅ Update status dot in chat list
+    function updateStatusDot(username, isOnline) {
+        const dot = document.getElementById('status_' + username);
+        if (dot) {
+            if (isOnline) {
+                dot.classList.add('online');
+            } else {
+                dot.classList.remove('online');
+            }
+        }
+    }
+
+    // ✅ Update header status text
+    function updateHeaderStatus(username) {
+        const statusEl = document.getElementById('header-status');
+        if (onlineStatusMap[username]) {
+            statusEl.textContent = '🟢 Online';
+            statusEl.style.color = '#25d366';
+        } else {
+            statusEl.textContent = '⚫ Offline';
+            statusEl.style.color = '#999';
+        }
+    }
+
+    // ✅ Show/hide typing indicator
+    function showTypingIndicator(isTyping) {
+        const indicator = document.getElementById('typing-indicator');
+        const receiver = document.getElementById('username').innerHTML.trim();
+        if (isTyping) {
+            indicator.textContent = receiver + ' is typing...';
+            indicator.classList.add('visible');
+        } else {
+            indicator.classList.remove('visible');
+        }
+    }
+
+    // ✅ Send typing status to receiver
+    function sendTypingStatus(isTyping) {
+        const receiver = document.getElementById('username').innerHTML.trim();
+        if (!receiver || receiver === 'username') return;
+        if (!presenceSocket || presenceSocket.readyState !== WebSocket.OPEN) return;
+
+        presenceSocket.send(JSON.stringify({
+            type: 'typing',
+            to: receiver,
+            from: ME,
+            isTyping: isTyping
+        }));
+    }
+
+    // ✅ Detect typing in message box
+    document.getElementById('msgText').addEventListener('input', function () {
+        sendTypingStatus(true);
+
+        // Stop typing after 2 seconds of no input
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            sendTypingStatus(false);
+        }, 2000);
+    });
+
     // ========== VIDEO CALL ==========
     const rtcConfig = {
         iceServers: [
@@ -379,17 +549,16 @@
     let incomingSignalSocket = null;
 
     function connectIncomingSignal() {
-        const me = '<%= session.getAttribute("username") %>';
-        if (!me || me === 'null') return;
+        if (!ME || ME === 'null') return;
 
         const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
         incomingSignalSocket = new WebSocket(
-            `${wsProtocol}://${window.location.host}/signal/incoming_${me}`
+            `${wsProtocol}://${window.location.host}/signal/incoming_${ME}`
         );
 
         incomingSignalSocket.onopen = () => {
-            console.log("✅ Waiting for incoming calls as: " + me);
+            console.log("✅ Waiting for incoming calls as: " + ME);
         };
 
         incomingSignalSocket.onmessage = async (event) => {
@@ -402,16 +571,13 @@
                 if (accept) {
                     document.getElementById('videoModal').style.display = 'flex';
                     document.getElementById('remoteLabel').innerText = caller;
-
-                    const me = '<%= session.getAttribute("username") %>';
-                    const roomId = [me, caller].sort().join('_');
+                    const roomId = [ME, caller].sort().join('_');
                     initWebRTC(roomId, false);
                 }
             }
         };
 
         incomingSignalSocket.onclose = () => {
-            console.log("Disconnected, reconnecting in 3s...");
             setTimeout(connectIncomingSignal, 3000);
         };
 
@@ -432,8 +598,7 @@
         document.getElementById('videoModal').style.display = 'flex';
         document.getElementById('remoteLabel').innerText = receiver;
 
-        const me = '<%= session.getAttribute("username") %>';
-        const roomId = [me, receiver].sort().join('_');
+        const roomId = [ME, receiver].sort().join('_');
         const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
         const notifySocket = new WebSocket(
@@ -441,16 +606,8 @@
         );
 
         notifySocket.onopen = () => {
-            notifySocket.send(JSON.stringify({
-                type: 'call-request',
-                caller: me
-            }));
-            console.log("✅ Call request sent to: " + receiver);
+            notifySocket.send(JSON.stringify({ type: 'call-request', caller: ME }));
             setTimeout(() => notifySocket.close(), 1000);
-        };
-
-        notifySocket.onerror = (e) => {
-            console.error("Notify error:", e);
         };
 
         initWebRTC(roomId, true);
@@ -482,23 +639,19 @@
         };
 
         peerConnection.ontrack = (e) => {
-            console.log("✅ Remote stream received");
             document.getElementById('remoteVideo').srcObject = e.streams[0];
         };
 
         signalSocket.onmessage = async (event) => {
             const signal = JSON.parse(event.data);
-            console.log("Signal received:", signal.type);
 
             if (signal.type === 'offer') {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
                 signalSocket.send(JSON.stringify({ type: 'answer', data: answer }));
-
             } else if (signal.type === 'answer') {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
-
             } else if (signal.type === 'ice-candidate') {
                 try {
                     await peerConnection.addIceCandidate(new RTCIceCandidate(signal.data));
@@ -511,14 +664,13 @@
 
         if (isInitiator) {
             signalSocket.onopen = async () => {
-                console.log("✅ Initiator: sending offer...");
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 signalSocket.send(JSON.stringify({ type: 'offer', data: offer }));
             };
         } else {
             signalSocket.onopen = () => {
-                console.log("✅ Receiver: ready, waiting for offer...");
+                console.log("✅ Receiver ready...");
             };
         }
     }
