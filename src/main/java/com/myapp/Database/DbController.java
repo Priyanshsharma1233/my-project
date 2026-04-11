@@ -6,76 +6,96 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DbController {
-    Connection connection;
-    PreparedStatement pstmt;
 
-    public DbController() {
-        try {
+    // ✅ Shared static connection — no new connection every request
+    private static Connection sharedConnection = null;
+    private static final Object LOCK = new Object();
+
+    private static Connection getConnection() throws SQLException {
+        synchronized (LOCK) {
             try {
-                Class.forName("com.mysql.cj.jdbc.Driver");
+                if (sharedConnection == null || sharedConnection.isClosed()) {
+                    Class.forName("com.mysql.cj.jdbc.Driver");
+
+                    String host     = getEnv("MYSQLHOST",     "localhost");
+                    String port     = getEnv("MYSQLPORT",     "3306");
+                    String user     = getEnv("MYSQLUSER",     "root");
+                    String password = getEnv("MYSQLPASSWORD", "1234");
+                    String database = getEnv("MYSQLDATABASE", "chatdb");
+
+                    String url = "jdbc:mysql://" + host + ":" + port + "/" + database
+                            + "?createDatabaseIfNotExist=true"
+                            + "&useSSL=false"
+                            + "&allowPublicKeyRetrieval=true"
+                            + "&autoReconnect=true"
+                            + "&characterEncoding=UTF-8";
+
+                    sharedConnection = DriverManager.getConnection(url, user, password);
+                    System.out.println("✅ DB connected");
+                    createTables(sharedConnection);
+                }
             } catch (ClassNotFoundException e) {
-                System.out.println("Driver not found");
+                throw new SQLException("Driver not found: " + e.getMessage());
             }
-
-            // ✅ Read from environment variables (Railway)
-            // Falls back to localhost for local development
-            String host     = getEnv("MYSQLHOST",     "localhost");
-            String port     = getEnv("MYSQLPORT",     "3306");
-            String user     = getEnv("MYSQLUSER",     "root");
-            String password = getEnv("MYSQLPASSWORD", "1234");
-            String database = getEnv("MYSQLDATABASE", "chatdb");
-
-            String url = "jdbc:mysql://" + host + ":" + port + "/" + database
-                    + "?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true";
-
-            connection = DriverManager.getConnection(url, user, password);
-            Statement statement = connection.createStatement();
-
-            try {
-                statement.executeUpdate("create table if not exists users(name varchar(20), username varchar(20) primary key, password varchar(10))");
-            } catch (SQLException e) {
-                System.out.println("error in create users table " + e);
-            }
-
-            try {
-                statement.executeUpdate("create table if not exists Message(msgid int primary key auto_increment, sender varchar(20), Receiver varchar(20), message varchar(500), timestamps timestamp default current_timestamp)");
-            } catch (SQLException e) {
-                System.out.println("error in create Message table " + e);
-            }
-
-            try {
-                statement.executeUpdate("create table if not exists Recipient(id varchar(20) primary key, recipient varchar(20), user varchar(20))");
-            } catch (SQLException e) {
-                System.out.println("error in create Recipient table " + e);
-            }
-
-        } catch (Exception e) {
-            System.out.println("error in connecting " + e);
+            return sharedConnection;
         }
     }
 
-    // ✅ Helper to read environment variable with fallback
-    private String getEnv(String key, String fallback) {
+    private static void createTables(Connection conn) {
+        try (Statement st = conn.createStatement()) {
+            // ✅ password varchar(60) — supports BCrypt in future
+            st.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS users(" +
+                            "name varchar(50), " +
+                            "username varchar(20) PRIMARY KEY, " +
+                            "password varchar(60))"
+            );
+            st.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS Message(" +
+                            "msgid int PRIMARY KEY AUTO_INCREMENT, " +
+                            "sender varchar(20), " +
+                            "receiver varchar(20), " +
+                            "message varchar(1000), " +
+                            "timestamps TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+            );
+            st.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS Recipient(" +
+                            "id varchar(20) PRIMARY KEY, " +
+                            "recipient varchar(20), " +
+                            "user varchar(20))"
+            );
+            System.out.println("✅ Tables ready");
+        } catch (SQLException e) {
+            System.out.println("Table error: " + e.getMessage());
+        }
+    }
+
+    private static String getEnv(String key, String fallback) {
         String value = System.getenv(key);
         return (value != null && !value.isEmpty()) ? value : fallback;
     }
 
+    // ✅ Create user
     public int createUser(String name, String username, String password) {
         try {
-            pstmt = connection.prepareStatement("insert into users (name, username, password) values (?,?,?)");
-            pstmt.setString(1, name);
-            pstmt.setString(2, username);
-            pstmt.setString(3, password);
-            pstmt.executeUpdate();
-            return 1;
+            Connection conn = getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO users(name,username,password) VALUES(?,?,?)")) {
+                ps.setString(1, name);
+                ps.setString(2, username);
+                ps.setString(3, password);
+                ps.executeUpdate();
+                return 1;
+            }
         } catch (SQLIntegrityConstraintViolationException e) {
             return 2;
         } catch (Exception e) {
-            System.out.println("Something went wrong " + e);
+            System.out.println("createUser error: " + e.getMessage());
             return 3;
         }
     }
 
+    // ✅ Validate login
     public String validateUser(String username, String password) {
         if (username == null || password == null) return null;
         username = username.trim();
@@ -83,87 +103,91 @@ public class DbController {
         if (username.isEmpty() || password.isEmpty()) return null;
 
         try {
-            if (connection == null || connection.isClosed()) {
-                System.out.println("validateUser: DB connection is null or closed!");
-                return null;
-            }
-        } catch (Exception e) {
-            System.out.println("validateUser: error checking connection: " + e);
-            return null;
-        }
-
-        String sql = "SELECT name FROM users WHERE username = ? AND password = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setString(1, username);
-            ps.setString(2, password);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("name");
+            Connection conn = getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT name FROM users WHERE username=? AND password=?")) {
+                ps.setString(1, username);
+                ps.setString(2, password);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return rs.getString("name");
                 }
             }
-        } catch (SQLException sq) {
-            System.out.println("validateUser: SQL error: " + sq.getMessage());
-        } catch (Exception ex) {
-            System.out.println("validateUser: unexpected error: " + ex);
+        } catch (Exception e) {
+            System.out.println("validateUser error: " + e.getMessage());
         }
         return null;
     }
 
+    // ✅ Get user by username
     public String getUsers(String username) {
-        String user = null;
+        if (username == null) return null;
         try {
-            String query = "SELECT username FROM users WHERE username = ?";
-            PreparedStatement ps = connection.prepareStatement(query);
-            ps.setString(1, username);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                user = rs.getString("username");
+            Connection conn = getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT username FROM users WHERE username=?")) {
+                ps.setString(1, username.trim());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return rs.getString("username");
+                }
             }
-            rs.close();
-            ps.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("getUsers error: " + e.getMessage());
         }
-        return user;
+        return null;
     }
 
+    // ✅ Insert message
     public void insertMessage(Message message) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement("insert into Message(sender,receiver,message) value(?,?,?)");
-        statement.setString(1, message.sender);
-        statement.setString(2, message.receiver);
-        statement.setString(3, message.message);
-        statement.executeUpdate();
+        if (message == null || message.sender == null || message.receiver == null) return;
+        Connection conn = getConnection();
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO Message(sender,receiver,message) VALUES(?,?,?)")) {
+            ps.setString(1, message.sender);
+            ps.setString(2, message.receiver);
+            ps.setString(3, message.message);
+            ps.executeUpdate();
+        }
     }
 
+    // ✅ Get chat contacts
     public ResultSet getReceiverName(String username) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement("select distinct receiver, sender from Message where sender=? or receiver=?");
-        statement.setString(1, username);
-        statement.setString(2, username);
-        return statement.executeQuery();
+        Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(
+                "SELECT DISTINCT receiver, sender FROM Message WHERE sender=? OR receiver=?"
+        );
+        ps.setString(1, username);
+        ps.setString(2, username);
+        return ps.executeQuery();
     }
 
+    // ✅ Get messages between two users
     public List<Message> getMessage(String sender, String receiver) throws SQLException {
-        List<Message> Messages = new ArrayList<>();
-        String query = "SELECT * FROM message WHERE (sender = ? AND receiver = ?) OR (sender = ? AND receiver = ?) ORDER BY timestamps ASC";
+        List<Message> list = new ArrayList<>();
+        if (sender == null || receiver == null) return list;
 
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setString(1, sender);
-            statement.setString(2, receiver);
-            statement.setString(3, receiver);
-            statement.setString(4, sender);
+        Connection conn = getConnection();
+        String query =
+                "SELECT * FROM message WHERE " +
+                        "(sender=? AND receiver=?) OR (sender=? AND receiver=?) " +
+                        "ORDER BY timestamps ASC";
 
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    Message message = new Message();
-                    message.id = resultSet.getInt("msgid");
-                    message.sender = resultSet.getString("sender");
-                    message.receiver = resultSet.getString("receiver");
-                    message.message = resultSet.getString("message");
-                    message.timestamp = resultSet.getTimestamp("timestamps");
-                    Messages.add(message);
+        try (PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, sender);
+            ps.setString(2, receiver);
+            ps.setString(3, receiver);
+            ps.setString(4, sender);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Message msg = new Message();
+                    msg.id        = rs.getInt("msgid");
+                    msg.sender    = rs.getString("sender");
+                    msg.receiver  = rs.getString("receiver");
+                    msg.message   = rs.getString("message");
+                    msg.timestamp = rs.getTimestamp("timestamps");
+                    list.add(msg);
                 }
             }
         }
-        return Messages;
+        return list;
     }
 }
